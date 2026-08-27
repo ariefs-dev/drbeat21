@@ -1,10 +1,14 @@
 # Dr Beat 21
 
+**Live: https://ariefs-dev.github.io/drbeat21/**
+
 A browser metronome modelled on the Boss DB-90 *Dr. Beat* — subdivision mixing,
 accent patterns, the three Rhythm Coach practice modes, memory slots and MIDI
 clock out. No build step, no dependencies, no samples: every click is synthesised.
 
 ## Running it
+
+Use the live site above, or run it locally:
 
 ```bash
 python3 -m http.server 8321
@@ -12,7 +16,8 @@ python3 -m http.server 8321
 ```
 
 Serve it rather than opening `index.html` from disk. Browsers only grant
-microphone access on `https://` or `localhost`, and Time Check needs the mic.
+microphone access on `https://` or `localhost`, and Time Check needs the mic;
+service workers have the same requirement, so the offline support needs it too.
 Everything else works from a `file://` URL.
 
 ## What it does

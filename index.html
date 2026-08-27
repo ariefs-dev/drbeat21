@@ -344,8 +344,10 @@
 <footer class="footer">
   <p><b>Keys</b> — <kbd>Space</kbd> start/stop · <kbd>T</kbd> tap · <kbd>↑</kbd>/<kbd>↓</kbd> ±1 BPM ·
      <kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> ±10 BPM</p>
-  <p id="offlineNote" class="hint">Works offline once loaded — add it to your home screen and it opens like an app.</p>
-  <button id="installBtn" class="btn" type="button" hidden>Install Dr Beat 21</button>
+  <div data-pwa-only>
+    <p id="offlineNote" class="hint">Works offline once loaded — add it to your home screen and it opens like an app.</p>
+    <button id="installBtn" class="btn" type="button" hidden>Install Dr Beat 21</button>
+  </div>
 </footer>
 
 <script src="js/voices.js"></script>

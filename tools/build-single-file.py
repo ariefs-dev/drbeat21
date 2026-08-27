@@ -49,7 +49,12 @@ def body_of(html):
     if not match:
         sys.exit("could not find the body element in index.html")
     body = match.group(1)
-    return re.sub(r'\s*<script src="[^"]+"></script>', "", body).strip()
+    body = re.sub(r'\s*<script src="[^"]+"></script>', "", body)
+    # Drop anything that only makes sense for the installable copy: a bundled
+    # file has no service worker beside it, so an install button would be a
+    # control that can never do anything.
+    body = re.sub(r"\s*<div data-pwa-only>.*?</div>", "", body, flags=re.S)
+    return body.strip()
 
 
 def script_order(html):

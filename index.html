@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dr Beat 21 — Rhythm Coach Metronome</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d2025" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dr Beat 21">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@500;600;700&family=Azeret+Mono:wght@600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script>
+/* PWA wiring. This lives in <head> on purpose: tools/build-single-file.py copies
+   the <body>, so the bundled builds — which have no sw.js beside them — never try
+   to register one. Every path is relative so a project-site subpath works too. */
+(function () {
+  'use strict';
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (e) {
+        // Not fatal: without a worker the app still runs, just not offline.
+        console.warn('[pwa] service worker did not register:', e && e.message);
+      });
+    });
+  }
+
+  // Chromium fires this when the app qualifies for installation; Safari never
+  // does, which is why the footer also explains the manual route.
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferred = e;
+    var btn = document.getElementById('installBtn');
+    if (btn) btn.hidden = false;
+  });
+
+  window.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('installBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      if (!deferred) return;
+      deferred.prompt();
+      deferred.userChoice.then(function () {
+        deferred = null;
+        btn.hidden = true;
+      });
+    });
+  });
+
+  window.addEventListener('appinstalled', function () {
+    var btn = document.getElementById('installBtn');
+    if (btn) btn.hidden = true;
+    deferred = null;
+  });
+})();
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">DR BEAT</span><span class="brand-num">21</span>
+  </div>
+  <p class="brand-sub">Rhythm coach metronome</p>
+</header>
+
+<main class="unit">
+
+  <!-- ─────────── Display ─────────── -->
+  <section class="panel display" aria-label="Display">
+    <div class="lcd">
+      <div class="lcd-tempo">
+        <output id="bpmValue" class="bpm">120</output>
+        <div class="bpm-side">
+          <span class="bpm-unit">BPM</span>
+          <span id="tempoName" class="tempo-name">Moderato</span>
+        </div>
+      </div>
+
+      <div class="lcd-meta">
+        <span>BAR <b id="barCount">0</b></span>
+        <span>BEAT <b id="beatCount">–</b></span>
+        <span>TIME <b id="elapsed">0:00</b></span>
+        <span id="statusFlag" class="status-flag">STOPPED</span>
+      </div>
+
+      <div id="leds" class="leds" role="group" aria-label="Beat indicator"></div>
+    </div>
+
+    <div class="transport">
+      <button id="startStop" class="btn btn-primary" type="button" aria-pressed="false">Start</button>
+      <button id="tapTempo" class="btn" type="button">Tap</button>
+      <div class="vol">
+        <label for="volume">Volume</label>
+        <input id="volume" class="fader" type="range" min="0" max="1" step="0.01" value="0.8">
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Tempo ─────────── -->
+  <section class="panel" aria-labelledby="h-tempo">
+    <h2 id="h-tempo">Tempo</h2>
+    <div class="tempo-row">
+      <button id="bpmDown10" class="btn btn-sq" type="button" aria-label="Decrease tempo by 10">−10</button>
+      <button id="bpmDown" class="btn btn-sq" type="button" aria-label="Decrease tempo by 1">−</button>
+      <button id="bpmUp" class="btn btn-sq" type="button" aria-label="Increase tempo by 1">+</button>
+      <button id="bpmUp10" class="btn btn-sq" type="button" aria-label="Increase tempo by 10">+10</button>
+    </div>
+    <input id="bpmSlider" class="fader tempo-slider" type="range" min="30" max="250" step="1" value="120"
+           aria-label="Tempo in beats per minute">
+    <div class="chips" id="tempoPresets">
+      <button class="chip" type="button" data-bpm="60">60</button>
+      <button class="chip" type="button" data-bpm="80">80</button>
+      <button class="chip" type="button" data-bpm="100">100</button>
+      <button class="chip" type="button" data-bpm="120">120</button>
+      <button class="chip" type="button" data-bpm="140">140</button>
+      <button class="chip" type="button" data-bpm="180">180</button>
+    </div>
+    <p class="hint">Range 30–250 BPM. Tap four or more times for tap tempo.</p>
+  </section>
+
+  <!-- ─────────── Beat / meter ─────────── -->
+  <section class="panel" aria-labelledby="h-beat">
+    <h2 id="h-beat">Beat</h2>
+    <div class="field-row">
+      <label for="beatsPerMeasure">Beats per bar</label>
+      <select id="beatsPerMeasure">
+        <option value="0">0 — no accent</option>
+        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        <option value="4" selected>4</option><option value="5">5</option><option value="6">6</option>
+        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label for="beatUnit">Note value</label>
+      <select id="beatUnit">
+        <option value="2">2 — half</option>
+        <option value="4" selected>4 — quarter</option>
+        <option value="8">8 — eighth</option>
+        <option value="16">16 — sixteenth</option>
+      </select>
+    </div>
+    <p class="sub-label">Accent pattern</p>
+    <p class="hint accent-hint">Click a beat to cycle it: accent → normal → silent.</p>
+    <div id="accentGrid" class="accent-grid" role="group" aria-label="Accent pattern"></div>
+    <div class="chips" id="accentPresets">
+      <button class="chip" type="button" data-pattern="2,1,1,1">4/4</button>
+      <button class="chip" type="button" data-pattern="2,1,1">3/4</button>
+      <button class="chip" type="button" data-pattern="2,1,1,2,1,1">6/8</button>
+      <button class="chip" type="button" data-pattern="2,1,1,2,1,1,2">3-3-2</button>
+      <button class="chip" type="button" data-pattern="2,1,2,1,1,0,1">Clave-ish</button>
+      <button class="chip" type="button" data-pattern="2,0,1,0">Backbeat only</button>
+    </div>
+  </section>
+
+  <!-- ─────────── Note mixer ─────────── -->
+  <section class="panel" aria-labelledby="h-note">
+    <h2 id="h-note">Note</h2>
+    <p class="hint">Blend subdivisions on top of the beat, each with its own level.</p>
+    <div id="layerMixer" class="mixer"></div>
+  </section>
+
+  <!-- ─────────── Sound ─────────── -->
+  <section class="panel" aria-labelledby="h-sound">
+    <h2 id="h-sound">Sound</h2>
+    <div class="field-row">
+      <label for="voice">Click voice</label>
+      <select id="voice"></select>
+    </div>
+    <p class="sub-label">Reference tone</p>
+    <div class="field-row">
+      <label for="refNote">Note</label>
+      <select id="refNote">
+        <option value="0">A</option><option value="1">A♯/B♭</option><option value="2">B</option>
+        <option value="3">C</option><option value="4">C♯/D♭</option><option value="5">D</option>
+        <option value="6">D♯/E♭</option><option value="7">E</option><option value="8">F</option>
+        <option value="9">F♯/G♭</option><option value="10">G</option><option value="11">G♯/A♭</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label for="refTune">Tuning <b id="refTuneValue">440</b> Hz</label>
+      <input id="refTune" class="fader" type="range" min="415" max="466" step="1" value="440">
+    </div>
+    <button id="refToneBtn" class="btn btn-wide" type="button" aria-pressed="false">Hold reference tone</button>
+  </section>
+
+  <!-- ─────────── Rhythm coach ─────────── -->
+  <section class="panel span2" aria-labelledby="h-coach">
+    <h2 id="h-coach">Rhythm Coach</h2>
+    <div class="tabs" id="coachTabs" role="tablist">
+      <button class="tab is-active" type="button" role="tab" data-mode="off" aria-selected="true">Off</button>
+      <button class="tab" type="button" role="tab" data-mode="quiet" aria-selected="false">Quiet Count</button>
+      <button class="tab" type="button" role="tab" data-mode="gradual" aria-selected="false">Gradual Up/Down</button>
+      <button class="tab" type="button" role="tab" data-mode="timecheck" aria-selected="false">Time Check</button>
+    </div>
+
+    <div class="coach-body">
+      <div class="coach-pane" data-pane="off">
+        <p class="hint">Coach is off — the metronome runs straight.</p>
+      </div>
+
+      <div class="coach-pane is-hidden" data-pane="quiet">
+        <p class="hint">The click drops out for whole bars so you have to keep your own time. Come back in on the downbeat.</p>
+        <div class="field-row">
+          <label for="qcPlay">Bars sounding</label>
+          <input id="qcPlay" type="number" min="1" max="16" value="1">
+        </div>
+        <div class="field-row">
+          <label for="qcMute">Bars silent</label>
+          <input id="qcMute" type="number" min="1" max="16" value="1">
+        </div>
+        <div class="field-row">
+          <label for="qcGradual">Add a silent bar each cycle</label>
+          <input id="qcGradual" type="checkbox">
+        </div>
+        <div class="field-row">
+          <label for="qcMaxMute">Stop widening at</label>
+          <input id="qcMaxMute" type="number" min="1" max="32" value="8">
+        </div>
+        <div class="readout">
+          <span>State <b id="qcState">–</b></span>
+          <span>Cycles done <b id="qcCycles">0</b></span>
+        </div>
+      </div>
+
+      <div class="coach-pane is-hidden" data-pane="gradual">
+        <p class="hint">Tempo moves on its own so you can push a passage up to speed without touching the dial.</p>
+        <div class="field-row">
+          <label for="grStart">Start BPM</label>
+          <input id="grStart" type="number" min="30" max="250" value="80">
+        </div>
+        <div class="field-row">
+          <label for="grTarget">Target BPM</label>
+          <input id="grTarget" type="number" min="30" max="250" value="140">
+        </div>
+        <div class="field-row">
+          <label for="grStep">Step BPM</label>
+          <input id="grStep" type="number" min="1" max="30" value="4">
+        </div>
+        <div class="field-row">
+          <label for="grEvery">Every N bars</label>
+          <input id="grEvery" type="number" min="1" max="32" value="2">
+        </div>
+        <div class="field-row">
+          <label for="grLoop">Reverse and repeat at the target</label>
+          <input id="grLoop" type="checkbox">
+        </div>
+        <div class="readout">
+          <span>Now <b id="grNow">–</b></span>
+          <span>Heading to <b id="grGoal">–</b></span>
+          <span id="grDone"></span>
+        </div>
+      </div>
+
+      <div class="coach-pane is-hidden" data-pane="timecheck">
+        <p class="hint">Play along into the microphone. Each hit is matched to the nearest grid point and graded.</p>
+        <div class="field-row">
+          <label for="tcGrid">Grade against</label>
+          <select id="tcGrid">
+            <option value="1" selected>Beats</option>
+            <option value="2">Eighths</option>
+            <option value="3">Triplets</option>
+            <option value="4">Sixteenths</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label for="tcTolerance">Tolerance <b id="tcToleranceValue">30</b> ms</label>
+          <input id="tcTolerance" class="fader" type="range" min="5" max="100" step="1" value="30">
+        </div>
+        <div class="field-row">
+          <label for="tcThreshold">Mic sensitivity</label>
+          <input id="tcThreshold" class="fader" type="range" min="0.01" max="0.3" step="0.005" value="0.06">
+        </div>
+        <div class="field-row">
+          <label for="tcLatency">Input latency offset <b id="tcLatencyValue">0</b> ms</label>
+          <input id="tcLatency" class="fader" type="range" min="-100" max="200" step="1" value="0">
+        </div>
+        <div class="meter-wrap" aria-hidden="true"><div id="tcMeter" class="meter-fill"></div></div>
+        <div class="tc-actions">
+          <button id="tcListen" class="btn" type="button">Enable microphone</button>
+          <button id="tcReset" class="btn" type="button">Reset score</button>
+        </div>
+        <div id="tcError" class="error is-hidden" role="alert"></div>
+        <div class="score">
+          <div class="score-cell"><span>Accuracy</span><b id="tcAccuracy">–</b></div>
+          <div class="score-cell"><span>Avg error</span><b id="tcAvg">–</b></div>
+          <div class="score-cell"><span>Bias</span><b id="tcBias">–</b></div>
+          <div class="score-cell"><span>Hits</span><b id="tcHits">0</b></div>
+        </div>
+        <div class="drift" aria-hidden="true">
+          <span class="drift-label">early</span>
+          <div class="drift-track"><i id="tcNeedle" class="drift-needle"></i><i class="drift-centre"></i></div>
+          <span class="drift-label">late</span>
+        </div>
+        <p id="tcVerdict" class="verdict">&nbsp;</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Memory ─────────── -->
+  <section class="panel" aria-labelledby="h-memory">
+    <h2 id="h-memory">Memory</h2>
+    <div class="field-row">
+      <label for="presetName">Name</label>
+      <input id="presetName" type="text" placeholder="e.g. Etude no.3 — slow" maxlength="40">
+    </div>
+    <div class="tc-actions">
+      <button id="presetSave" class="btn" type="button">Save setup</button>
+      <button id="presetExport" class="btn" type="button">Export</button>
+      <button id="presetImport" class="btn" type="button">Import</button>
+      <input id="presetFile" type="file" accept="application/json" hidden>
+    </div>
+    <p id="presetStatus" class="hint" role="status" aria-live="polite"></p>
+    <ul id="presetList" class="preset-list"></ul>
+  </section>
+
+  <!-- ─────────── MIDI ─────────── -->
+  <section class="panel" aria-labelledby="h-midi">
+    <h2 id="h-midi">MIDI clock out</h2>
+    <p class="hint">Sends 24 PPQN clock plus start/stop so a drum machine or DAW follows this tempo.</p>
+    <div class="field-row">
+      <label for="midiEnable">Send clock</label>
+      <input id="midiEnable" type="checkbox">
+    </div>
+    <div class="field-row">
+      <label for="midiOut">Output</label>
+      <select id="midiOut"><option value="">— none —</option></select>
+    </div>
+    <div id="midiStatus" class="hint">Not connected.</div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p><b>Keys</b> — <kbd>Space</kbd> start/stop · <kbd>T</kbd> tap · <kbd>↑</kbd>/<kbd>↓</kbd> ±1 BPM ·
+     <kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> ±10 BPM</p>
+  <p id="offlineNote" class="hint">Works offline once loaded — add it to your home screen and it opens like an app.</p>
+  <button id="installBtn" class="btn" type="button" hidden>Install Dr Beat 21</button>
+</footer>
+
+<script src="js/voices.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/midi.js"></script>
+<script src="js/presets.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

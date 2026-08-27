@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Dr Beat 21">
+  <!-- Full-bleed ground: maskable icons are cropped to a platform shape, so the
+       background must reach every edge and the mark must stay inside the safe circle. -->
+  <rect width="512" height="512" fill="#1d2025"/>
+  <!-- Metronome body -->
+  <path d="M204 116 h104 l62 296 a14 14 0 0 1 -14 17 H156 a14 14 0 0 1 -14 -17 Z"
+        fill="#e9ebee"/>
+  <!-- Slot the pendulum swings in -->
+  <rect x="240" y="150" width="32" height="212" rx="16" fill="#1d2025"/>
+  <!-- Pendulum, caught mid-swing -->
+  <g stroke="#ff7f1f" stroke-width="18" stroke-linecap="round">
+    <line x1="256" y1="358" x2="318" y2="150"/>
+  </g>
+  <rect x="262" y="226" width="56" height="36" rx="9" fill="#ff7f1f"
+        transform="rotate(-16.6 290 244)"/>
+  <!-- Base plinth -->
+  <rect x="128" y="418" width="256" height="26" rx="13" fill="#e9ebee"/>
+</svg>

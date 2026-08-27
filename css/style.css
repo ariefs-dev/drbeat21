@@ -1,0 +1,436 @@
+/* Dr Beat 21 — front panel.
+ *
+ * The unit is styled as a piece of hardware: graphite chassis, silkscreened
+ * legends, rubberised buttons, and a transflective LCD. The LCD keeps its dark
+ * green ground in both themes, because a real one does not invert when the
+ * lights come up — only the chassis around it changes.
+ */
+
+/* ── Tokens: light (daylight panel) ── */
+:root {
+  --page:         #e7eaee;
+  --chassis:      #f4f6f8;
+  --panel:        #fbfcfd;
+  --raised:       #ffffff;
+  --edge:         #c6ccd4;
+  --edge-soft:    #dde2e8;
+  --ink:          #1b1e23;
+  --silk:         #626973;
+  --accent:       #e0620c;
+  --accent-ink:   #fff6ee;
+  --accent-soft:  rgba(224, 98, 12, .12);
+  --shadow:       0 1px 2px rgba(20, 28, 38, .07), 0 10px 28px rgba(20, 28, 38, .10);
+  --inset:        inset 0 1px 0 rgba(255, 255, 255, .9);
+
+  /* The LCD is theme-independent. */
+  --lcd:          #0c1f18;
+  --lcd-edge:     #061410;
+  --lcd-ink:      #7dffb0;
+  --lcd-dim:      rgba(125, 255, 176, .30);
+  --lcd-amber:    #ffb457;
+
+  --good:         #2f9e5e;
+  --warn:         #b47a10;
+  --bad:          #cf4a44;
+
+  --r-sm: 6px;
+  --r:    10px;
+  --r-lg: 16px;
+}
+
+/* ── Tokens: dark (stage) ── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page:        #131519;
+    --chassis:     #1d2025;
+    --panel:       #24272d;
+    --raised:      #2c3037;
+    --edge:        #3a3f47;
+    --edge-soft:   #2f343b;
+    --ink:         #e9ebee;
+    --silk:        #8b929b;
+    --accent:      #ff7f1f;
+    --accent-ink:  #1a1006;
+    --accent-soft: rgba(255, 127, 31, .16);
+    --shadow:      0 1px 0 rgba(255, 255, 255, .03), 0 12px 30px rgba(0, 0, 0, .45);
+    --inset:       inset 0 1px 0 rgba(255, 255, 255, .05);
+    --good:        #4ade80;
+    --warn:        #f5b642;
+    --bad:         #f2635d;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page:        #131519;
+  --chassis:     #1d2025;
+  --panel:       #24272d;
+  --raised:      #2c3037;
+  --edge:        #3a3f47;
+  --edge-soft:   #2f343b;
+  --ink:         #e9ebee;
+  --silk:        #8b929b;
+  --accent:      #ff7f1f;
+  --accent-ink:  #1a1006;
+  --accent-soft: rgba(255, 127, 31, .16);
+  --shadow:      0 1px 0 rgba(255, 255, 255, .03), 0 12px 30px rgba(0, 0, 0, .45);
+  --inset:       inset 0 1px 0 rgba(255, 255, 255, .05);
+  --good:        #4ade80;
+  --warn:        #f5b642;
+  --bad:         #f2635d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 400 15px/1.55 "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.topbar {
+  display: flex; align-items: baseline; gap: .85rem; flex-wrap: wrap;
+  max-width: 1200px; margin: 0 auto; padding: 1.5rem clamp(1rem, 4vw, 2rem) .9rem;
+}
+.brand { display: flex; align-items: baseline; gap: .4rem; }
+.brand-mark {
+  font-family: "Barlow Condensed", "Barlow", sans-serif;
+  font-weight: 700; font-size: 1.5rem; letter-spacing: .2em; text-transform: uppercase;
+}
+.brand-num {
+  font-family: "Azeret Mono", ui-monospace, Menlo, monospace;
+  font-weight: 700; font-size: .95rem; color: var(--accent-ink);
+  background: var(--accent); border-radius: var(--r-sm); padding: .1rem .42rem;
+}
+.brand-sub {
+  margin: 0; color: var(--silk); font-size: .82rem;
+  text-transform: uppercase; letter-spacing: .14em;
+  font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 500;
+}
+
+/* ── Chassis grid ── */
+.unit {
+  display: grid; gap: .9rem;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  max-width: 1200px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2rem) 2rem;
+}
+
+.panel {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow), var(--inset);
+  padding: 1.6rem 1.15rem 1.25rem;
+}
+
+/* Silkscreen legend, set into the panel's top edge like a printed label. */
+.panel h2 {
+  position: absolute; top: .62rem; left: 1.15rem; margin: 0;
+  font-family: "Barlow Condensed", "Barlow", sans-serif;
+  font-size: .74rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .2em; color: var(--silk);
+}
+
+.display, .span2 { grid-column: 1 / -1; }
+@media (min-width: 920px) { .span2 { grid-column: span 2; } }
+.display { padding-top: 1.15rem; }
+
+/* ── LCD ── */
+.lcd {
+  position: relative; overflow: hidden;
+  background: var(--lcd);
+  border: 1px solid var(--lcd-edge);
+  border-radius: var(--r);
+  padding: 1.05rem 1.25rem 1.15rem;
+  box-shadow: inset 0 2px 18px rgba(0, 0, 0, .6);
+  color: var(--lcd-ink);
+}
+/* Fine horizontal ruling, the way a transflective panel catches light. */
+.lcd::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom, rgba(255,255,255,.028) 0 1px, transparent 1px 3px);
+}
+.lcd-tempo { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.bpm {
+  font-family: "Azeret Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 700; font-size: clamp(3.1rem, 11vw, 5.4rem); line-height: .92;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 26px rgba(125, 255, 176, .3);
+}
+.bpm-side { display: flex; flex-direction: column; gap: .1rem; }
+.bpm-unit {
+  font-family: "Barlow Condensed", sans-serif; font-weight: 600;
+  font-size: .78rem; letter-spacing: .28em; color: var(--lcd-dim);
+}
+.tempo-name { font-size: 1.05rem; font-style: italic; opacity: .92; }
+.lcd-meta {
+  display: flex; gap: 1.4rem; flex-wrap: wrap; align-items: baseline;
+  margin-top: .65rem; font-size: .74rem; letter-spacing: .12em;
+  font-family: "Azeret Mono", ui-monospace, Menlo, monospace;
+  color: var(--lcd-dim); font-variant-numeric: tabular-nums;
+}
+.lcd-meta b { font-weight: 600; color: var(--lcd-ink); }
+.status-flag { margin-left: auto; font-weight: 600; color: var(--lcd-ink); }
+.status-flag.is-quiet { color: var(--lcd-amber); }
+
+/* ── Beat LEDs ── */
+.leds { display: flex; gap: .45rem; margin-top: 1rem; }
+.led {
+  /* Capped so four beats read as indicators rather than stretching into bars. */
+  flex: 1 1 0; max-width: 108px; height: 15px; border-radius: 3px;
+  background: rgba(125, 255, 176, .12);
+  border: 1px solid rgba(125, 255, 176, .22);
+  transition: background .06s linear, box-shadow .06s linear;
+}
+.led-accent { border-color: rgba(255, 180, 87, .45); background: rgba(255, 180, 87, .12); }
+.led-off { opacity: .28; }
+.led.is-on { background: var(--lcd-ink); box-shadow: 0 0 18px rgba(125, 255, 176, .7); }
+.led.is-on.is-accent-hit { background: var(--lcd-amber); box-shadow: 0 0 22px rgba(255, 180, 87, .85); }
+
+/* ── Buttons ── */
+.btn {
+  font-family: "Barlow", sans-serif; font-size: .92rem; font-weight: 600;
+  color: var(--ink); background: var(--raised);
+  border: 1px solid var(--edge); border-radius: var(--r);
+  padding: .55rem .95rem; cursor: pointer;
+  box-shadow: var(--inset);
+  transition: transform .06s ease, border-color .12s ease, background .12s ease;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:active { transform: translateY(1px); box-shadow: none; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn-primary {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  min-width: 7rem; font-size: 1rem; letter-spacing: .04em;
+}
+.btn-primary.is-running { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn-sq { flex: 1 1 auto; min-width: 3.1rem; padding: .5rem .55rem; font-variant-numeric: tabular-nums; }
+.btn-wide { width: 100%; }
+.btn-xs { padding: .28rem .6rem; font-size: .8rem; }
+.btn-danger:hover { border-color: var(--bad); color: var(--bad); }
+.btn.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.is-tapped { background: var(--accent-soft); border-color: var(--accent); }
+
+.transport { display: flex; align-items: center; gap: .65rem; margin-top: .95rem; flex-wrap: wrap; }
+.vol { display: flex; align-items: center; gap: .6rem; flex: 1 1 190px; }
+.vol label {
+  font-family: "Barlow Condensed", sans-serif; font-size: .76rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .16em; color: var(--silk);
+}
+
+/* ── Faders: a slot with a raised cap ── */
+.fader {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; min-width: 88px; height: 26px; background: transparent; cursor: pointer;
+}
+.fader::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 999px;
+  background: linear-gradient(var(--edge-soft), var(--edge-soft));
+  border: 1px solid var(--edge);
+}
+.fader::-moz-range-track {
+  height: 5px; border-radius: 999px; background: var(--edge-soft); border: 1px solid var(--edge);
+}
+.fader::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 21px; margin-top: -9px;
+  border-radius: 4px; background: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+.fader::-moz-range-thumb {
+  width: 13px; height: 20px; border-radius: 4px;
+  background: var(--accent); border: 1px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+.tempo-slider { width: 100%; margin-top: .55rem; }
+
+/* ── Fields ── */
+.field-row {
+  display: flex; align-items: center; gap: .8rem;
+  margin-bottom: .5rem; font-size: .9rem; flex-wrap: wrap;
+}
+.field-row label { color: var(--silk); flex: 0 0 auto; min-width: 9.5rem; font-weight: 500; }
+.field-row label b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.field-row select,
+.field-row input[type="text"],
+.field-row input[type="number"] {
+  font: inherit; color: var(--ink); background: var(--raised);
+  border: 1px solid var(--edge); border-radius: var(--r-sm);
+  padding: .42rem .55rem; flex: 1 1 6rem; min-width: 0;
+}
+.field-row input[type="number"] { font-variant-numeric: tabular-nums; max-width: 6rem; }
+.field-row input[type="checkbox"] {
+  width: 19px; height: 19px; accent-color: var(--accent); margin: 0;
+}
+.field-row .fader { flex: 1 1 110px; }
+
+.sub-label {
+  margin: 1.05rem 0 .45rem;
+  font-family: "Barlow Condensed", sans-serif; font-size: .74rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .18em; color: var(--silk);
+}
+.hint { margin: .5rem 0 0; font-size: .84rem; color: var(--silk); max-width: 62ch; }
+.accent-hint { margin: 0 0 .6rem; }
+.tempo-row { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+
+/* ── Chips ── */
+.chips { display: flex; gap: .38rem; flex-wrap: wrap; margin-top: .75rem; }
+.chip {
+  font-family: "Azeret Mono", ui-monospace, monospace; font-size: .76rem;
+  background: transparent; color: var(--silk);
+  border: 1px solid var(--edge); border-radius: 999px;
+  padding: .26rem .68rem; cursor: pointer;
+  transition: color .12s ease, border-color .12s ease;
+}
+.chip:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Accent pattern ── */
+.accent-grid { display: flex; gap: .4rem; flex-wrap: wrap; }
+.accent-cell {
+  font-family: "Azeret Mono", ui-monospace, monospace;
+  font-size: .92rem; font-weight: 600; cursor: pointer;
+  width: 46px; height: 46px; border-radius: var(--r);
+  border: 1px solid var(--edge); background: var(--raised); color: var(--silk);
+  box-shadow: var(--inset);
+  transition: transform .06s ease;
+}
+.accent-cell:active { transform: translateY(1px); }
+.accent-cell.is-accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.accent-cell.is-normal { color: var(--ink); }
+.accent-cell.is-silent { opacity: .4; text-decoration: line-through; }
+
+/* ── Note mixer ── */
+.mixer { display: grid; gap: .45rem; }
+.mixer-row { display: flex; align-items: center; gap: .7rem; }
+.layer-toggle {
+  font: inherit; cursor: pointer; text-align: left;
+  display: flex; align-items: baseline; gap: .55rem; flex: 0 0 10.5rem;
+  background: var(--raised); color: var(--silk);
+  border: 1px solid var(--edge); border-radius: var(--r);
+  padding: .44rem .65rem; box-shadow: var(--inset);
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.layer-toggle.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.layer-note { font-size: 1.02rem; }
+.layer-name {
+  font-family: "Barlow Condensed", sans-serif; font-size: .88rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+}
+
+/* ── Coach ── */
+.tabs { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: .9rem; }
+.tab {
+  font-family: "Barlow Condensed", sans-serif; font-size: .88rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em; cursor: pointer;
+  background: var(--raised); color: var(--silk);
+  border: 1px solid var(--edge); border-radius: var(--r);
+  padding: .48rem .85rem; box-shadow: var(--inset);
+}
+.tab:hover { border-color: var(--accent); }
+.tab.is-active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.coach-pane.is-hidden, .is-hidden { display: none; }
+
+.readout {
+  display: flex; gap: 1.4rem; flex-wrap: wrap;
+  margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--edge-soft);
+  font-family: "Azeret Mono", ui-monospace, monospace;
+  font-size: .78rem; color: var(--silk); font-variant-numeric: tabular-nums;
+}
+.readout b { color: var(--ink); font-weight: 600; }
+
+.tc-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin: .85rem 0; }
+
+.meter-wrap {
+  height: 8px; border-radius: 999px; background: var(--edge-soft);
+  border: 1px solid var(--edge); overflow: hidden; margin-top: .6rem;
+}
+.meter-fill { height: 100%; width: 0; background: var(--silk); transition: width .05s linear; }
+.meter-fill.is-hot { background: var(--good); }
+
+.score {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: .55rem; margin-top: .55rem;
+}
+.score-cell {
+  background: var(--raised); border: 1px solid var(--edge);
+  border-radius: var(--r); padding: .55rem .7rem;
+  display: flex; flex-direction: column; gap: .12rem; box-shadow: var(--inset);
+}
+.score-cell span {
+  font-family: "Barlow Condensed", sans-serif; font-size: .7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .13em; color: var(--silk);
+}
+.score-cell b {
+  font-family: "Azeret Mono", ui-monospace, monospace;
+  font-size: 1.08rem; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+
+/* Early/late needle: centre line is the beat. */
+.drift { display: flex; align-items: center; gap: .65rem; margin-top: .95rem; }
+.drift-label {
+  font-family: "Barlow Condensed", sans-serif; font-size: .7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .13em; color: var(--silk);
+}
+.drift-track {
+  position: relative; flex: 1; height: 28px;
+  background: var(--raised); border: 1px solid var(--edge); border-radius: var(--r);
+  overflow: hidden;
+}
+.drift-centre { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 2px; background: var(--good); }
+.drift-needle {
+  position: absolute; left: 50%; top: 2px; bottom: 2px; width: 4px;
+  border-radius: 2px; background: var(--accent);
+  transform: translateX(-50%); transition: left .1s ease-out;
+}
+
+.verdict {
+  margin: .65rem 0 0; min-height: 1.5em;
+  font-family: "Azeret Mono", ui-monospace, monospace;
+  font-size: .9rem; font-weight: 600;
+}
+.verdict.is-good  { color: var(--good); }
+.verdict.is-early { color: var(--warn); }
+.verdict.is-late  { color: var(--bad); }
+
+.error {
+  margin: .55rem 0; padding: .65rem .8rem; font-size: .85rem;
+  border: 1px solid var(--bad); border-left-width: 3px;
+  border-radius: var(--r-sm); color: var(--bad); background: var(--accent-soft);
+}
+
+/* ── Memory ── */
+.preset-list { list-style: none; margin: .9rem 0 0; padding: 0; display: grid; gap: .4rem; }
+.preset-item {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  background: var(--raised); border: 1px solid var(--edge);
+  border-radius: var(--r); padding: .45rem .65rem; box-shadow: var(--inset);
+}
+.preset-name { font-weight: 600; flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
+.preset-meta {
+  font-family: "Azeret Mono", ui-monospace, monospace;
+  font-size: .74rem; color: var(--silk); font-variant-numeric: tabular-nums;
+}
+
+/* ── Footer ── */
+.footer {
+  max-width: 1200px; margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2rem) 2.5rem;
+  color: var(--silk); font-size: .84rem;
+}
+kbd {
+  font-family: "Azeret Mono", ui-monospace, monospace; font-size: .76rem;
+  background: var(--raised); color: var(--ink);
+  border: 1px solid var(--edge); border-bottom-width: 2px;
+  border-radius: var(--r-sm); padding: .08rem .38rem;
+}
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dr Beat 21 — voice render tests</title>
+</head>
+<body>
+<h1>Voice render tests</h1>
+<p>Renders every click voice through an OfflineAudioContext and checks it actually
+   produces sound, decays to silence, and stays within headroom.</p>
+<pre id="out">running…</pre>
+
+<script src="../js/voices.js"></script>
+<script>
+/* Each voice is rendered on its own so a throwing voice cannot hide behind
+   another one's output. Assertions are on the rendered samples, not on whether
+   the call returned without error. */
+(async function () {
+  const DB = window.DrBeat;
+  const SR = 44100;
+  const results = [];
+  let failed = 0;
+
+  async function render(voice, level) {
+    const ctx = new OfflineAudioContext(1, SR, SR);   // one second
+    const master = ctx.createGain();
+    master.gain.value = 1;
+    master.connect(ctx.destination);
+    DB.Voices.play(ctx, master, 0.01, level, voice, 1);
+    const buf = await ctx.startRendering();
+    const d = buf.getChannelData(0);
+
+    let peak = 0, peakAt = 0;
+    for (let i = 0; i < d.length; i++) {
+      const v = Math.abs(d[i]);
+      if (v > peak) { peak = v; peakAt = i; }
+    }
+    // Tail energy: everything after 400 ms should have died away.
+    let tail = 0;
+    for (let i = Math.floor(SR * 0.4); i < d.length; i++) tail = Math.max(tail, Math.abs(d[i]));
+    return { peak, peakAt: peakAt / SR, tail };
+  }
+
+  function assert(cond, label) {
+    if (!cond) { failed++; results.push('  FAIL  ' + label); }
+  }
+
+  for (const voice of DB.Voices.names) {
+    for (const level of ['accent', 'beat', 'sub']) {
+      let r;
+      try {
+        r = await render(voice, level);
+      } catch (e) {
+        failed++;
+        results.push(`  FAIL  ${voice}/${level} threw: ${e.message}`);
+        continue;
+      }
+      assert(r.peak > 0.001, `${voice}/${level} produced silence (peak ${r.peak.toFixed(5)})`);
+      assert(r.peak <= 1.0, `${voice}/${level} clipped (peak ${r.peak.toFixed(3)})`);
+      assert(r.peakAt < 0.25, `${voice}/${level} attack too late (${r.peakAt.toFixed(3)}s)`);
+      assert(r.tail < 0.01, `${voice}/${level} still ringing after 400ms (${r.tail.toFixed(4)})`);
+      results.push(
+        `  ok    ${voice.padEnd(9)} ${level.padEnd(7)} peak ${r.peak.toFixed(3)}` +
+        `  attack ${(r.peakAt * 1000).toFixed(1)}ms  tail ${r.tail.toFixed(5)}`);
+    }
+  }
+
+  // Levels must be strictly ordered accent > beat > sub for every voice —
+  // an accent that does not stand out is the one thing a metronome must not do.
+  // The noise-based voices start from a random offset into the noise buffer, so a
+  // single render's peak is stochastic. Averaging a few renders makes the ordering
+  // assertion measure the design intent rather than one draw of the noise.
+  const avgPeak = async (voice, level, n = 6) => {
+    let total = 0;
+    for (let i = 0; i < n; i++) total += (await render(voice, level)).peak;
+    return total / n;
+  };
+
+  for (const voice of DB.Voices.names) {
+    const a = { peak: await avgPeak(voice, 'accent') };
+    const b = { peak: await avgPeak(voice, 'beat') };
+    const s = { peak: await avgPeak(voice, 'sub') };
+    assert(a.peak > b.peak,
+      `${voice}: accent (${a.peak.toFixed(3)}) not louder than beat (${b.peak.toFixed(3)})`);
+    assert(b.peak > s.peak,
+      `${voice}: beat (${b.peak.toFixed(3)}) not louder than sub (${s.peak.toFixed(3)})`);
+    results.push(`  ok    ${voice.padEnd(9)} levels   accent ${a.peak.toFixed(3)} > ` +
+                 `beat ${b.peak.toFixed(3)} > sub ${s.peak.toFixed(3)}`);
+  }
+
+  // A zero-gain call must schedule nothing at all.
+  {
+    const ctx = new OfflineAudioContext(1, SR, SR);
+    const g = ctx.createGain(); g.connect(ctx.destination);
+    DB.Voices.play(ctx, g, 0.01, 'beat', 'beep', 0);
+    const d = (await ctx.startRendering()).getChannelData(0);
+    let peak = 0;
+    for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    assert(peak === 0, `zero-gain call still produced sound (peak ${peak})`);
+  }
+
+  // An unknown voice name must fall back rather than throw.
+  {
+    const ctx = new OfflineAudioContext(1, SR, SR);
+    const g = ctx.createGain(); g.connect(ctx.destination);
+    try {
+      DB.Voices.play(ctx, g, 0.01, 'beat', 'not-a-real-voice', 1);
+      const d = (await ctx.startRendering()).getChannelData(0);
+      let peak = 0;
+      for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+      assert(peak > 0.001, 'unknown voice fell back to silence');
+    } catch (e) {
+      failed++;
+      results.push('  FAIL  unknown voice threw: ' + e.message);
+    }
+  }
+
+  const total = DB.Voices.names.length * 3;
+  document.getElementById('out').textContent =
+    results.join('\n') + `\n\n  ${total} voice/level combinations rendered — ` +
+    (failed ? `${failed} FAILED` : 'all assertions passed');
+  document.title = failed ? 'VOICE TESTS FAILED' : 'VOICE TESTS PASSED';
+})();
+</script>
+</body>
+</html>

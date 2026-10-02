@@ -595,3 +595,8 @@ kbd {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
+
+/* Controls the browser cannot honour are shown but visibly inert, so the
+   absence is explained rather than mysterious. */
+.field-row.is-unsupported { opacity: .5; }
+.field-row.is-unsupported select { cursor: not-allowed; }

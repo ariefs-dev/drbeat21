@@ -129,9 +129,11 @@
     this.chunks = [];
     this.startedAt = 0;
     this.meta = null;
+    this.appliedLatency = 0;
     this._dest = null;
     this._micSource = null;
     this._clickTap = null;
+    this._clickDelay = null;
   }
 
   TakeRecorder.prototype.supported = function () { return DB.Takes.supported(); };
@@ -149,7 +151,14 @@
 
     var ctx = this.engine.ensureContext();
     return DB.Mic.acquire().then(function (stream) {
+      /* Channel count is forced here rather than in the capture constraints:
+       * channelCount is only a hint to getUserMedia and devices routinely
+       * ignore it, whereas an explicit count on the mix node decides what
+       * MediaRecorder actually receives. */
       self._dest = ctx.createMediaStreamDestination();
+      self._dest.channelCount = DB.Mic.stereo() ? 2 : 1;
+      self._dest.channelCountMode = 'explicit';
+      self._dest.channelInterpretation = 'speakers';
       self._micSource = ctx.createMediaStreamSource(stream);
       self._micSource.connect(self._dest);
 
@@ -159,7 +168,22 @@
         self._clickTap = ctx.createGain();
         self._clickTap.gain.value = 1;
         self.engine.masterGain.connect(self._clickTap);
-        self._clickTap.connect(self._dest);
+
+        /* The click reaches the mix instantly while the playing arrives a
+         * capture-buffer late, so without this the take has you dragging
+         * behind a beat you were actually on. Delaying the click by the same
+         * amount lines the two up. The figure is the browser's own estimate,
+         * so it is a correction rather than a cure. */
+        var latency = DB.Mic.inputLatency();
+        if (latency > 0 && latency < 0.5) {
+          self._clickDelay = ctx.createDelay(1);
+          self._clickDelay.delayTime.value = latency;
+          self._clickTap.connect(self._clickDelay);
+          self._clickDelay.connect(self._dest);
+        } else {
+          self._clickTap.connect(self._dest);
+        }
+        self.appliedLatency = latency;
       }
 
       var mime = pickMime();
@@ -202,6 +226,8 @@
           mime: mime,
           size: blob.size,
           ext: extensionFor(mime),
+          alignedMs: Math.round((self.appliedLatency || 0) * 1000),
+          channels: DB.Mic.stereo() ? 2 : 1,
           bpm: self.meta ? self.meta.bpm : null,
           meterLabel: self.meta ? self.meta.meterLabel : '',
           label: ''
@@ -219,6 +245,7 @@
       try { this._clickTap.disconnect(); } catch (e) {}
       this._clickTap = null;
     }
+    if (this._clickDelay) { try { this._clickDelay.disconnect(); } catch (e) {} this._clickDelay = null; }
     if (this._micSource) { try { this._micSource.disconnect(); } catch (e) {} this._micSource = null; }
     if (this._dest) { try { this._dest.disconnect(); } catch (e) {} this._dest = null; }
     if (this.recorder) { this.recorder = null; DB.Mic.release(); }

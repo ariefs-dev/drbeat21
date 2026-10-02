@@ -6,7 +6,7 @@
  *
  * Bump CACHE whenever the shell changes; the old cache is deleted on activate.
  */
-const CACHE = 'drbeat21-v2';
+const CACHE = 'drbeat21-v3';
 
 /* Relative URLs so this works both at a domain root and under a project-site
  * subpath like /DrBeat21/ — an absolute '/index.html' would 404 under the latter. */

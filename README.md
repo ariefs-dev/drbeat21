@@ -61,12 +61,55 @@ The panel shows a 14-day chart (with a table view for the same numbers), this
 week's total, a day streak, and the session list, where each session can be
 labelled with what you were working on. Export as CSV or JSON.
 
+**Audio in / out** — choose which input to record from and which output the
+click goes to. Without this the browser picks its own default, which is usually
+the built-in mic and the laptop speakers even when an interface is plugged in.
+*Check input* opens the device and runs a level meter so you can confirm signal
+is arriving before you commit to a take, and it reports the channel count,
+sample rate and input latency. Your choice is remembered, and plugging a device
+in or out updates the lists without a reload.
+
+Output selection uses `AudioContext.setSinkId`, which is Chromium-only; on
+Safari and Firefox the control is visibly disabled rather than silently
+ignored, and you route the click with the operating system's output device.
+
 **Takes** — press Record to capture yourself playing. The recording is your
 microphone *and* the metronome mixed together in Web Audio before it reaches
 `MediaRecorder`, so the click is on the take whether or not you practise on
 headphones. Takes attach to the session they were made in, and can be played
 back, saved to a file, or deleted. Audio never leaves the browser: it lives in
 IndexedDB, which (unlike `localStorage`) is sized for it.
+
+Two details that matter when playing along through an interface:
+
+- **The click is delayed to match your input latency.** Audio captured from an
+  interface arrives a buffer late, while the click is placed on the audio clock
+  exactly. Mixed naively, every take would show you dragging behind a beat you
+  were actually on. The click is delayed by the browser's reported capture
+  latency before it joins the mix, and each take records how much was applied.
+  It is the browser's estimate, so treat it as a correction rather than a cure.
+- **Mono or stereo is decided at the mix, not at the microphone.**
+  `channelCount` is only a hint to `getUserMedia` and devices routinely ignore
+  it; an explicit channel count on the mixing node is what MediaRecorder
+  actually receives.
+
+## On phones and tablets
+
+Recording and playback work on mobile, with caveats worth knowing:
+
+- **iOS Safari** supports `MediaRecorder` from version 14.3, recording to MP4
+  with AAC. The app asks the browser which formats it supports and picks one, so
+  it records Opus in WebM on Chromium and MP4 on Safari without any
+  configuration. Playback and saving work the same either way.
+- **A microphone needs `https://`**, which the live site is. A take recorded on
+  your phone stays on your phone: IndexedDB is per-browser and per-device, with
+  no sync, so save anything you want to keep.
+- **Class-compliant interfaces work over USB-C or the camera adapter**, and show
+  up in the input list once you have allowed the microphone once. Phones are
+  much more likely than laptops to hand you the built-in mic by default, so
+  check the input picker rather than assuming.
+- These are the documented platform behaviours; the app has been verified on
+  desktop Chromium, not on physical iOS or Android hardware.
 
 **MIDI clock out** — 24 PPQN clock plus start/stop, so a drum machine or DAW
 follows this tempo. Chrome and Edge only; Safari and Firefox have no Web MIDI.

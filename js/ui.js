@@ -1246,6 +1246,178 @@
     if (recorder.isRecording()) $('recTime').textContent = fmtClock(recorder.elapsedMs());
   }, 500);
 
+  /* ───────── Audio routing ───────── */
+
+  var ioMeterRaf = null;
+  var ioProbe = null;   // { source, analyser, data } while Check input is on
+
+  function ioStatus(msg) { $('ioStatus').textContent = msg || ''; }
+
+  function fillDeviceLists() {
+    return DB.Mic.devices().then(function (d) {
+      var inSel = $('inputDevice'), outSel = $('outputDevice');
+      var prevIn = DB.Mic.device(), prevOut = outSel.value;
+
+      inSel.innerHTML = '<option value="">Default input</option>';
+      d.inputs.forEach(function (dev, i) {
+        if (dev.deviceId === 'default') return;   // already covered by the first entry
+        var o = document.createElement('option');
+        o.value = dev.deviceId;
+        o.textContent = dev.label || ('Input ' + (i + 1));
+        inSel.appendChild(o);
+      });
+      inSel.value = prevIn;
+      // An unknown stored id means that interface is unplugged right now.
+      if (inSel.value !== prevIn) inSel.value = '';
+
+      var canRoute = typeof engine.ensureContext === 'function';
+      outSel.innerHTML = '<option value="">Default output</option>';
+      d.outputs.forEach(function (dev, i) {
+        if (dev.deviceId === 'default') return;
+        var o = document.createElement('option');
+        o.value = dev.deviceId;
+        o.textContent = dev.label || ('Output ' + (i + 1));
+        outSel.appendChild(o);
+      });
+      outSel.value = prevOut;
+
+      if (!d.labelled && d.inputs.length) {
+        ioStatus('Device names appear once you have allowed the microphone — press Check input.');
+      }
+      return d;
+    });
+  }
+
+  // Output routing is Chromium-only; elsewhere the control would lie, so hide it.
+  (function gateOutputRouting() {
+    var supported = typeof AudioContext !== 'undefined' &&
+      typeof AudioContext.prototype.setSinkId === 'function';
+    if (supported) return;
+    var sel = $('outputDevice');
+    sel.disabled = true;
+    var row = sel.closest('.field-row');
+    if (row) row.classList.add('is-unsupported');
+    sel.title = 'This browser cannot choose an output device.';
+  })();
+
+  $('inputDevice').addEventListener('change', function () {
+    var result = DB.Mic.setDevice(this.value);
+    var name = this.options[this.selectedIndex].textContent;
+    stopInputCheck();
+    if (result.restartNeeded) {
+      // The worklet and recorder are wired to the old source node, so they
+      // cannot simply follow the stream to a different device.
+      if (coach.timeCheck.running) { coach.stopListening(); $('tcListen').textContent = 'Enable microphone'; }
+      if (recorder.isRecording()) {
+        recorder.stop().then(function () { setRecordUi(false); return refreshTakes(); }).then(renderLog);
+      }
+      ioStatus('Input switched to ' + name + '. Listening and recording were stopped — start them again.');
+    } else {
+      ioStatus('Input set to ' + name + '.');
+    }
+    persist();
+  });
+
+  $('stereoIn').addEventListener('change', function () {
+    var result = DB.Mic.setStereo(this.checked);
+    stopInputCheck();
+    if (result.restartNeeded && coach.timeCheck.running) {
+      coach.stopListening();
+      $('tcListen').textContent = 'Enable microphone';
+    }
+    ioStatus(this.checked
+      ? 'Takes will capture both channels when the input offers them.'
+      : 'Takes will capture one channel.');
+    persist();
+  });
+
+  $('outputDevice').addEventListener('change', function () {
+    var ctx = engine.ensureContext();
+    var id = this.value;
+    var name = this.options[this.selectedIndex].textContent;
+    if (typeof ctx.setSinkId !== 'function') return ioStatus('This browser cannot choose an output device.');
+    ctx.setSinkId(id).then(function () {
+      ioStatus('Click is going to ' + name + '.');
+    }).catch(function (e) {
+      ioStatus('Could not switch output: ' + (e && e.message ? e.message : e));
+    });
+    persist();
+  });
+
+  function stopInputCheck() {
+    if (ioMeterRaf) { cancelAnimationFrame(ioMeterRaf); ioMeterRaf = null; }
+    if (ioProbe) {
+      try { ioProbe.source.disconnect(); } catch (e) {}
+      ioProbe = null;
+      DB.Mic.release();
+    }
+    $('inputMeter').style.width = '0%';
+    $('inputMeter').classList.remove('is-hot');
+    var btn = $('checkInput');
+    btn.classList.remove('is-on');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.textContent = 'Check input';
+  }
+
+  $('checkInput').addEventListener('click', function () {
+    var btn = this;
+    if (ioProbe) { stopInputCheck(); ioStatus('Input check stopped.'); return; }
+
+    btn.disabled = true;
+    ioStatus('Opening input…');
+    var ctx = engine.ensureContext();
+    DB.Mic.acquire().then(function (stream) {
+      btn.disabled = false;
+      var source = ctx.createMediaStreamSource(stream);
+      var analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+      // Deliberately not connected to the destination: monitoring the input
+      // through the speakers is a feedback loop waiting to happen.
+      ioProbe = { source: source, analyser: analyser, data: new Float32Array(analyser.fftSize) };
+
+      btn.classList.add('is-on');
+      btn.setAttribute('aria-pressed', 'true');
+      btn.textContent = 'Stop check';
+
+      var st = DB.Mic.settings() || {};
+      var latency = Math.round(DB.Mic.inputLatency() * 1000);
+      ioStatus('Listening — ' + (st.channelCount || 1) + ' channel' + ((st.channelCount || 1) > 1 ? 's' : '') +
+        ' at ' + (st.sampleRate || engine.ctx.sampleRate) + ' Hz' +
+        (latency ? ', ' + latency + ' ms input latency' : '') +
+        '. Play something and watch the meter.');
+      fillDeviceLists();
+
+      (function loop() {
+        if (!ioProbe) return;
+        ioProbe.analyser.getFloatTimeDomainData(ioProbe.data);
+        var peak = 0;
+        for (var i = 0; i < ioProbe.data.length; i++) {
+          var v = Math.abs(ioProbe.data[i]);
+          if (v > peak) peak = v;
+        }
+        var bar = $('inputMeter');
+        bar.style.width = Math.min(100, peak * 140) + '%';
+        bar.classList.toggle('is-hot', peak > 0.02);
+        ioMeterRaf = requestAnimationFrame(loop);
+      })();
+    }).catch(function (e) {
+      btn.disabled = false;
+      stopInputCheck();
+      ioStatus('Could not open that input: ' + (e && e.message ? e.message : e));
+    });
+  });
+
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    // Plugging the interface in after load should not require a page reload.
+    navigator.mediaDevices.addEventListener('devicechange', function () {
+      fillDeviceLists().then(function () { ioStatus('Audio devices changed.'); });
+    });
+  }
+
+  $('stereoIn').checked = DB.Mic.stereo();
+  fillDeviceLists();
+
   /* ───────── Keyboard ───────── */
 
   document.addEventListener('keydown', function (e) {

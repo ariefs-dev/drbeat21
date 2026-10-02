@@ -198,6 +198,31 @@
     <button id="refToneBtn" class="btn btn-wide" type="button" aria-pressed="false">Hold reference tone</button>
   </section>
 
+
+  <!-- ─────────── Audio routing ─────────── -->
+  <section class="panel" aria-labelledby="h-io">
+    <h2 id="h-io">Audio in / out</h2>
+    <p class="hint">Pick your interface here, or the browser will quietly use the
+       built-in mic and the laptop speakers.</p>
+    <div class="field-row">
+      <label for="inputDevice">Input</label>
+      <select id="inputDevice"><option value="">Default input</option></select>
+    </div>
+    <div class="field-row">
+      <label for="outputDevice">Click output</label>
+      <select id="outputDevice"><option value="">Default output</option></select>
+    </div>
+    <div class="field-row">
+      <label for="stereoIn">Record both channels</label>
+      <input id="stereoIn" type="checkbox">
+    </div>
+    <div class="tc-actions">
+      <button id="checkInput" class="btn" type="button" aria-pressed="false">Check input</button>
+    </div>
+    <div class="meter-wrap" aria-hidden="true"><div id="inputMeter" class="meter-fill"></div></div>
+    <p id="ioStatus" class="hint" role="status" aria-live="polite"></p>
+  </section>
+
   <!-- ─────────── Rhythm coach ─────────── -->
   <section class="panel span2" aria-labelledby="h-coach">
     <h2 id="h-coach">Rhythm Coach</h2>

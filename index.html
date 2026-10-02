@@ -100,6 +100,10 @@
     <div class="transport">
       <button id="startStop" class="btn btn-primary" type="button" aria-pressed="false">Start</button>
       <button id="tapTempo" class="btn" type="button">Tap</button>
+      <button id="recordBtn" class="btn btn-rec" type="button" aria-pressed="false">
+        <span class="rec-dot" aria-hidden="true"></span><span id="recordLabel">Record</span>
+      </button>
+      <output id="recTime" class="rec-time" hidden>0:00</output>
       <div class="vol">
         <label for="volume">Volume</label>
         <input id="volume" class="fader" type="range" min="0" max="1" step="0.01" value="0.8">
@@ -307,6 +311,48 @@
     </div>
   </section>
 
+
+  <!-- ─────────── Practice log ─────────── -->
+  <section class="panel span2" aria-labelledby="h-log">
+    <h2 id="h-log">Practice log</h2>
+
+    <p id="logLive" class="log-live is-idle">Not practising — the log starts itself when you hit Start.</p>
+
+    <div class="stats">
+      <div class="stat"><span>This week</span><b id="statWeek">0m</b></div>
+      <div class="stat"><span>Day streak</span><b id="statStreak">0</b></div>
+      <div class="stat"><span>Sessions</span><b id="statSessions">0</b></div>
+      <div class="stat"><span>Beats played</span><b id="statBeats">0</b></div>
+    </div>
+
+    <div class="chart-head">
+      <h3 id="h-chart">Minutes practised, last 14 days</h3>
+      <div class="seg" role="group" aria-label="Chart or table view">
+        <button type="button" class="seg-btn is-active" data-view="chart" aria-pressed="true">Chart</button>
+        <button type="button" class="seg-btn" data-view="table" aria-pressed="false">Table</button>
+      </div>
+    </div>
+    <div id="practiceChart" class="chart" aria-labelledby="h-chart"></div>
+    <div id="practiceTable" class="chart-table is-hidden"></div>
+
+    <div class="field-row log-opt">
+      <label for="includeClick">Record the click into takes</label>
+      <input id="includeClick" type="checkbox" checked>
+    </div>
+    <p class="hint">Takes mix your microphone with the metronome, so the click is on the
+       recording whether or not you practise on headphones. Audio stays in this browser.</p>
+
+    <div class="tc-actions">
+      <button id="logExportCsv" class="btn" type="button">Export CSV</button>
+      <button id="logExportJson" class="btn" type="button">Export JSON</button>
+      <button id="logClear" class="btn btn-danger" type="button">Clear log</button>
+    </div>
+    <p id="logStatus" class="hint" role="status" aria-live="polite"></p>
+
+    <h3 class="sub-label">Sessions</h3>
+    <ul id="sessionList" class="session-list"></ul>
+  </section>
+
   <!-- ─────────── Memory ─────────── -->
   <section class="panel" aria-labelledby="h-memory">
     <h2 id="h-memory">Memory</h2>
@@ -350,11 +396,14 @@
   </div>
 </footer>
 
+<script src="js/mic.js"></script>
 <script src="js/voices.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/coach.js"></script>
 <script src="js/midi.js"></script>
 <script src="js/presets.js"></script>
+<script src="js/sessions.js"></script>
+<script src="js/takes.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

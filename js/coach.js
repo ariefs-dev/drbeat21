@@ -151,16 +151,9 @@
   Coach.prototype.startListening = function () {
     var self = this;
     var ctx = this.engine.ensureContext();
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return Promise.reject(new Error('This browser exposes no microphone API.'));
-    }
-    return navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,   // all three would smear the transient we measure
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    }).then(function (stream) {
+    // The mic is shared with take recording (js/mic.js), so asking for it here
+    // costs at most one permission prompt no matter what else is listening.
+    return DB.Mic.acquire().then(function (stream) {
       self._stream = stream;
       var blob = new Blob([WORKLET_SRC], { type: 'application/javascript' });
       var url = URL.createObjectURL(blob);
@@ -191,7 +184,9 @@
     if (this._src) { try { this._src.disconnect(); } catch (e) {} this._src = null; }
     if (this._sink) { try { this._sink.disconnect(); } catch (e) {} this._sink = null; }
     if (this._stream) {
-      this._stream.getTracks().forEach(function (t) { t.stop(); });
+      // Hand the reference back rather than stopping the tracks: a take may
+      // still be recording from the same stream.
+      DB.Mic.release();
       this._stream = null;
     }
     this.timeCheck.running = false;

@@ -47,6 +47,27 @@ A415 to A466 across all twelve pitches.
 **Memory** — named setups in `localStorage`, with JSON export/import. The current
 setup is also restored automatically next time you open the page.
 
+**Practice log** — every run is recorded on its own: how long you played, the
+tempo range, meter, which coach modes you used, beats and bars, and the Time
+Check score when there is one.
+
+A session is *not* one press of Start. Real practice is dozens of short runs
+with thinking time between them, so runs are grouped into one session until you
+leave it alone for five minutes; the next run after that opens a new one. Each
+run is kept separately, so a session that crosses midnight puts its minutes on
+the days they were actually played.
+
+The panel shows a 14-day chart (with a table view for the same numbers), this
+week's total, a day streak, and the session list, where each session can be
+labelled with what you were working on. Export as CSV or JSON.
+
+**Takes** — press Record to capture yourself playing. The recording is your
+microphone *and* the metronome mixed together in Web Audio before it reaches
+`MediaRecorder`, so the click is on the take whether or not you practise on
+headphones. Takes attach to the session they were made in, and can be played
+back, saved to a file, or deleted. Audio never leaves the browser: it lives in
+IndexedDB, which (unlike `localStorage`) is sized for it.
+
 **MIDI clock out** — 24 PPQN clock plus start/stop, so a drum machine or DAW
 follows this tempo. Chrome and Edge only; Safari and Firefox have no Web MIDI.
 
@@ -80,6 +101,9 @@ worklet timestamps the sample that crossed the threshold instead.
 | File | Role |
 |---|---|
 | `js/engine.js` | Scheduler, grid, accents, subdivision layers |
+| `js/mic.js`    | One shared microphone, reference-counted |
+| `js/sessions.js`| Practice log: session grouping, stats, CSV |
+| `js/takes.js`  | Audio recording and IndexedDB storage |
 | `js/voices.js` | Synthesised click voices |
 | `js/coach.js`  | The three practice modes and onset detection |
 | `js/midi.js`   | MIDI clock output |
@@ -89,12 +113,19 @@ worklet timestamps the sample that crossed the threshold instead.
 ## Tests
 
 ```bash
-node test/engine.test.js          # 26 timing and coach tests, no browser needed
+node test/engine.test.js          # 26 timing and coach tests
+node test/sessions.test.js        # 21 practice log tests
 ```
 
-The engine tests drive the scheduler from a fake `AudioContext` clock, so every
-assertion is exact and nothing sleeps: beat spacing, note values, accent cycling,
-subdivision placement, mid-run tempo changes, and all three coach modes.
+Neither needs a browser. The engine tests drive the scheduler from a fake
+`AudioContext` clock, so every assertion is exact and nothing sleeps: beat
+spacing, note values, accent cycling, subdivision placement, mid-run tempo
+changes, and all three coach modes.
+
+The practice log tests drive a fake wall clock and a fake `localStorage`, so
+"five minutes later" and "the night of the 19th" are exact and instant: session
+grouping across the idle gap, per-day bucketing including a session that crosses
+midnight, streak counting, the storage cap, and CSV escaping.
 
 Voice rendering is tested in a browser, since it needs real Web Audio:
 
@@ -149,6 +180,12 @@ page owns its tab.
   than done badly.
 - **No drum patterns.** The DB-90's 50 rhythm patterns need samples; accent
   patterns cover the same practice ground here.
+- **Takes are stored per browser.** They are in IndexedDB on the device that
+  recorded them — not synced, and cleared if you wipe site data. Save anything
+  worth keeping to a file.
+- **Recording needs a microphone**, so it has the same `https://`-or-`localhost`
+  requirement as Time Check, and an embedded copy of the page may be blocked
+  from asking at all.
 - **Time Check needs calibration.** The mic path adds latency the browser will
   not report reliably. Play along with a sound the mic can hear clearly, watch
   the bias figure, and set the latency offset to cancel it.
